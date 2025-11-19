@@ -292,6 +292,10 @@ var MolView = {
 		this.addAction("mp_skeletal_formula", "button", true);
 		this.addAction("mp_center", "button", true);
 		this.addAction("mp_clean", "button", true);
+		// ----- SHPD (Shortest Path by chemical bond distances) & SHP tool -----
+		this.addAction("mp_shortest_path", "button", true);
+		this.addAction("mp_shortest_path_bond", "button", true);
+		// ----- Original code -----
 		this.addAction("mp_atom_c", "button", true);
 		this.addAction("mp_atom_h", "button", true);
 		this.addAction("mp_atom_n", "button", true);

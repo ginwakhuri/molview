@@ -122,18 +122,22 @@ MolPad.prototype.setupEventHandling = function () {
             return Sketcher.metadata.shortestPath2D || null;
         }
 
+        // ----- SHPD (Shortest Path by Distances) -----
         function isSHPActiveOrShown() {
-            // Block hotkeys if tool is active OR a path is currently shown
-            var toolActive = scope.tool && scope.tool.type === 'shortest_path';
             var meta = getMeta();
             var showing = !!(
                 meta &&
                 ((meta.atoms && meta.atoms.length) ||
                     (meta.bonds && meta.bonds.length))
             );
+            var toolActive =
+                scope.tool &&
+                (scope.tool.type === 'shortest_path' ||
+                    scope.tool.type === 'shortest_path_bond');
             return toolActive || showing;
         }
 
+        // ----- Original code -----
         function showIdx(next) {
             var meta = getMeta();
             if (meta && meta.paths && meta.paths.length) {
@@ -161,6 +165,10 @@ MolPad.prototype.setupEventHandling = function () {
             scope.sel.update();
             scope.requestRedraw();
             scope.clearRedrawRequest();
+            // ----- Displaying SHP/SHPD info -----
+            if (scope.updateShortestPathInfo) {
+                scope.updateShortestPathInfo();
+            }
         }
 
         // Capture-phase keydown: runs before jQuery hotkeys
@@ -311,11 +319,24 @@ MolPad.prototype.onPointerDown = function (e) {
     this.pointer.old.r.fromRelativePointer(e, this);
     this.pointer.handler = undefined;
 
-    // Shortest Path Tool
-    //clear selection if the current tool is not erase, select or drag
-    if (!oneOf(this.tool.type, ['erase', 'select', 'drag', 'shortest_path'])) {
+    // ----- SHPD (Shortest Path by Distances) Tool -----
+    if (
+        !oneOf(this.tool.type, [
+            'erase',
+            'select',
+            'drag',
+            'shortest_path',
+            'shortest_path_bond',
+        ])
+    ) {
         this.sel.clear();
     }
+
+    // Shortest Path Tool
+    //clear selection if the current tool is not erase, select or drag
+    /*if (!oneOf(this.tool.type, ['erase', 'select', 'drag', 'shortest_path'])) {
+        this.sel.clear();
+    }*/
 
     //check if there are multiple touches in this event
     if (oe.targetTouches && oe.targetTouches.length > 1) {
@@ -341,9 +362,13 @@ MolPad.prototype.onPointerDown = function (e) {
         e.which === 1 ||
         (oe.targetTouches && oe.targetTouches.length === 1)
     ) {
-        // When the SHP tool is active, always use the tool handler
+        // When the SHP or SHPD tool is active, always use the tool handler
         // instead of the atom/bond-specific handler.
-        if (this.tool && this.tool.type === 'shortest_path') {
+        if (
+            this.tool &&
+            (this.tool.type === 'shortest_path' ||
+                this.tool.type === 'shortest_path_bond')
+        ) {
             this.pointer.handler = this.getHandler();
         } else {
             // Default behavior (give the click to the object under the cursor)
@@ -520,6 +545,10 @@ MolPad.prototype.showShortestPathIndex = function (idx) {
             var bi = meta.bonds[j];
             if (this.mol.bonds[bi]) this.mol.bonds[bi].select(false);
         }
+    }
+    // ----- Displaying SHP/SHPD info -----
+    if (typeof this.updateShortestPathInfo === 'function') {
+        this.updateShortestPathInfo();
     }
 
     // Highlight new path
@@ -864,10 +893,8 @@ MolPad.prototype.getHandler = function () {
 
                 if (!mp.tool.selection) mp.tool.selection = [];
 
-                // ------------------------------------------------------------
                 // NEW: If a path is already highlighted and we're idle (no pick in progress),
                 // a single click clears the path and uses THIS atom as the new first pick.
-                // ------------------------------------------------------------
                 if (
                     mp.tool.selection.length === 0 &&
                     Sketcher.metadata &&
@@ -947,6 +974,8 @@ MolPad.prototype.getHandler = function () {
                     if (paths && paths.length) {
                         if (!Sketcher.metadata) Sketcher.metadata = {};
                         Sketcher.metadata.shortestPath2D = {
+                            // Displaying SHP/SHPD info
+                            mode: 'edges',
                             // full objects list for all paths (for quick render)
                             paths: paths,
                             // also store a compact cache of current shown indices
@@ -968,6 +997,128 @@ MolPad.prototype.getHandler = function () {
                         mp.tool.selection = [];
                         mp.sel.update();
                         mp.requestRedraw();
+                        if (typeof mp.updateShortestPathInfo === 'function') {
+                            // ----- Displaying SHP/SHPD info -----
+                            mp.updateShortestPathInfo();
+                        }
+                    } else {
+                        mp.tool.selection = [];
+                        mp.requestRedraw();
+                    }
+                }
+            },
+        };
+    }
+    // ----- SHPD (Shortest Path by Distances) -----
+    else if (this.tool.type === 'shortest_path_bond') {
+        return {
+            onPointerDown: function (e, mp) {
+                var p = new MPPoint().fromRelativePointer(e, mp);
+                var hit = null;
+
+                // Only pick atoms
+                mp.handleEvent(p, 'active', function (obj) {
+                    if (
+                        obj &&
+                        obj.element !== undefined &&
+                        obj.center !== undefined
+                    ) {
+                        hit = obj;
+                    }
+                });
+                if (!hit) return;
+
+                if (!mp.tool.selection) mp.tool.selection = [];
+
+                // If a path is shown and we're idle, a single click starts a new pick
+                if (
+                    mp.tool.selection.length === 0 &&
+                    Sketcher.metadata &&
+                    Sketcher.metadata.shortestPath2D &&
+                    ((Sketcher.metadata.shortestPath2D.atoms &&
+                        Sketcher.metadata.shortestPath2D.atoms.length) ||
+                        (Sketcher.metadata.shortestPath2D.bonds &&
+                            Sketcher.metadata.shortestPath2D.bonds.length))
+                ) {
+                    var pa = Sketcher.metadata.shortestPath2D.atoms || [];
+                    var pb = Sketcher.metadata.shortestPath2D.bonds || [];
+                    for (var i = 0; i < pa.length; i++) {
+                        var ai = pa[i];
+                        if (mp.mol.atoms[ai]) mp.mol.atoms[ai].select(false);
+                    }
+                    for (var j = 0; j < pb.length; j++) {
+                        var bi = pb[j];
+                        if (mp.mol.bonds[bi]) mp.mol.bonds[bi].select(false);
+                    }
+                    Sketcher.metadata.shortestPath2D = null;
+
+                    mp.sel.clear();
+                    mp.tool.selection.push(hit);
+                    hit.select(true);
+                    mp.requestRedraw();
+                    return;
+                }
+
+                // First pick
+                if (mp.tool.selection.length === 0) {
+                    mp.sel.clear();
+                    mp.tool.selection.push(hit);
+                    hit.select(true);
+                    mp.requestRedraw();
+                    return;
+                }
+
+                // Second pick → compute weighted (bond-length) shortest path(s)
+                if (mp.tool.selection.length === 1) {
+                    if (mp.tool.selection[0] === hit) return;
+
+                    mp.tool.selection.push(hit);
+                    var a = mp.tool.selection[0];
+                    var b = mp.tool.selection[1];
+
+                    var paths;
+                    if (
+                        typeof mp.mol.computeAllWeightedShortestPaths ===
+                        'function'
+                    ) {
+                        paths = mp.mol.computeAllWeightedShortestPaths(a, b, {
+                            excludeHydrogen: true,
+                        });
+                    } else {
+                        // Fallback if your code uses a metric flag on the same API
+                        paths = mp.mol.computeAllShortestPaths(a, b, {
+                            excludeHydrogen: true,
+                            metric: 'bond', // expects your weight function under the hood
+                        });
+                    }
+
+                    if (paths && paths.length) {
+                        if (!Sketcher.metadata) Sketcher.metadata = {};
+                        Sketcher.metadata.shortestPath2D = {
+                            mode: 'weights', // Distances are computed by chemical bond lengths
+                            paths: paths,
+                            atoms: (paths[0].atoms || []).map(function (x) {
+                                return x.index;
+                            }),
+                            bonds: (paths[0].bonds || []).map(function (x) {
+                                return x.index;
+                            }),
+                            idx: 0,
+                        };
+
+                        // highlight first path
+                        for (var k = 0; k < paths[0].atoms.length; k++)
+                            paths[0].atoms[k].select(true);
+                        for (var t = 0; t < paths[0].bonds.length; t++)
+                            paths[0].bonds[t].select(true);
+
+                        mp.tool.selection = [];
+                        mp.sel.update();
+                        mp.requestRedraw();
+                        if (typeof mp.updateShortestPathInfo === 'function') {
+                            // ----- Displaying SHP/SHPD info -----
+                            mp.updateShortestPathInfo();
+                        }
                     } else {
                         mp.tool.selection = [];
                         mp.requestRedraw();

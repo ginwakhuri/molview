@@ -570,11 +570,23 @@ MPMolecule.prototype.canTraverse = function (
         if (isMidpointH) return false;
     }
 
-    // optional: visibility (skip atoms hidden by skeletal display)
+    // ----- SHPD (Shortest Path by chemical bond distances) -----
     if (opts.visibleOnly) {
-        if (!this.atoms[toIdx].isVisible || !this.atoms[toIdx].isVisible())
+        var to = this.atoms[toIdx];
+        if (
+            !to ||
+            (typeof to.isVisible === 'function'
+                ? !to.isVisible()
+                : !to.isVisible)
+        )
             return false;
     }
+
+    // optional: visibility (skip atoms hidden by skeletal display)
+    /*if (opts.visibleOnly) {
+        if (!this.atoms[toIdx].isVisible || !this.atoms[toIdx].isVisible())
+            return false;
+    }*/
 
     return true;
 };
@@ -700,6 +712,227 @@ MPMolecule.prototype.computeAllShortestPaths = function (
     return paths;
 };
 
+// ----- SHPD (Shortest Path by chemical bond distances) -----
+
+// Map MPBond.type -> order (1/2/3)
+MPMolecule.prototype.bondOrder = function (bond) {
+    if (bond.type === MP_BOND_DOUBLE) return 2;
+    if (bond.type === MP_BOND_TRIPLE) return 3;
+    return 1; // default single
+};
+
+// Chemical bond "length" weight in Å for a bond, using rcov^(k)(A) + rcov^(k)(B)
+MPMolecule.prototype.chemicalBondLength = function (bond) {
+    var a1 = this.atoms[bond.from];
+    var a2 = this.atoms[bond.to];
+
+    // Safety fallback if missing
+    if (!a1 || !a2 || typeof ChemDoodle === 'undefined' || !ChemDoodle.ELEMENT)
+        return 1;
+
+    var e1 = ChemDoodle.ELEMENT[a1.element];
+    var e2 = ChemDoodle.ELEMENT[a2.element];
+
+    var r1 =
+        e1 && typeof e1.covalentRadius === 'number' ? e1.covalentRadius : 0.77;
+    var r2 =
+        e2 && typeof e2.covalentRadius === 'number' ? e2.covalentRadius : 0.77;
+
+    // Get bond order (1, 2, 3)
+    var order = this.bondOrder(bond);
+
+    // bond length = (rA ^ order) + (rB ^ order)
+    var length = Math.pow(r1, order) + Math.pow(r2, order);
+
+    return length;
+};
+
+// Dijkstra by chemical bond length. Returns {atoms:[...], bonds:[...]} or null.
+MPMolecule.prototype.computeWeightedShortestPath = function (
+    startAtom,
+    endAtom,
+    opts
+) {
+    if (!startAtom || !endAtom || startAtom === endAtom) return null;
+    opts = opts || {};
+
+    var n = this.atoms.length;
+    var dist = {},
+        prev = {},
+        seen = {};
+    var cmp = function (a, b) {
+        return a.d - b.d;
+    };
+
+    // tiny binary heap (ES5-ish) to stay local
+    var H = []; // array of {i, d}
+    function push(x) {
+        H.push(x);
+        H.sort(cmp);
+    }
+    function pop() {
+        return H.shift();
+    }
+
+    for (var i = 0; i < n; i++) dist[i] = Infinity;
+    var s = startAtom.index,
+        t = endAtom.index;
+    dist[s] = 0;
+    push({ i: s, d: 0 });
+
+    while (H.length) {
+        var cur = pop();
+        var u = cur.i;
+        if (seen[u]) continue;
+        seen[u] = true;
+        if (u === t) break;
+
+        var ua = this.atoms[u];
+        for (var bi = 0; bi < ua.bonds.length; bi++) {
+            var bond = this.bonds[ua.bonds[bi]];
+            if (!this.canTraverse(u, bond, s, t, opts)) continue;
+            var v = bond.from === u ? bond.to : bond.from;
+
+            var w = this.chemicalBondLength(bond);
+            if (w < 0) continue; // safety
+            var nd = dist[u] + w;
+            if (nd < dist[v]) {
+                dist[v] = nd;
+                prev[v] = { u: u, bond: bond.index };
+                push({ i: v, d: nd });
+            }
+        }
+    }
+
+    if (!seen[t]) return null;
+
+    // backtrack
+    var pathAtoms = [],
+        pathBonds = [];
+    for (var curIdx = t; curIdx !== s; ) {
+        var step = prev[curIdx];
+        pathAtoms.push(this.atoms[curIdx]);
+        pathBonds.push(this.bonds[step.bond]);
+        curIdx = step.u;
+    }
+    pathAtoms.push(startAtom);
+    pathAtoms.reverse();
+    pathBonds.reverse();
+
+    // ADD totalDistance here:
+    return {
+        atoms: pathAtoms,
+        bonds: pathBonds,
+        totalDistance: dist[t], // <-- real numeric chemical distance
+    };
+};
+
+// All shortest paths by chemical length (within epsilon to catch ties)
+MPMolecule.prototype.computeAllWeightedShortestPaths = function (
+    startAtom,
+    endAtom,
+    opts
+) {
+    opts = opts || {};
+    var best = this.computeWeightedShortestPath(startAtom, endAtom, opts);
+    if (!best) return [];
+    var bestLen = 0;
+    for (var i = 0; i < best.bonds.length; i++)
+        bestLen += this.chemicalBondLength(best.bonds[i]);
+
+    var EPS = opts.epsilon !== undefined ? opts.epsilon : 1e-6;
+
+    // Re-run Dijkstra but keep all parents within best distance
+    var n = this.atoms.length;
+    var s = startAtom.index,
+        t = endAtom.index;
+    var dist = [],
+        parents = [];
+    for (var j = 0; j < n; j++) {
+        dist[j] = Infinity;
+        parents[j] = [];
+    }
+
+    var H = [];
+    function push(x) {
+        H.push(x);
+        H.sort(function (a, b) {
+            return a.d - b.d;
+        });
+    }
+    function pop() {
+        return H.shift();
+    }
+
+    dist[s] = 0;
+    push({ i: s, d: 0 });
+
+    while (H.length) {
+        var cur = pop();
+        var u = cur.i;
+        if (cur.d > dist[u] + EPS) continue;
+
+        var ua = this.atoms[u];
+        for (var bi = 0; bi < ua.bonds.length; bi++) {
+            var bond = this.bonds[ua.bonds[bi]];
+            if (!this.canTraverse(u, bond, s, t, opts)) continue;
+            var v = bond.from === u ? bond.to : bond.from;
+
+            var w = this.chemicalBondLength(bond);
+            var nd = dist[u] + w;
+
+            if (nd + EPS < dist[v]) {
+                dist[v] = nd;
+                parents[v] = [{ u: u, bond: bond.index }];
+                push({ i: v, d: nd });
+            } else if (Math.abs(nd - dist[v]) <= EPS) {
+                parents[v].push({ u: u, bond: bond.index });
+            }
+        }
+    }
+    if (dist[t] === Infinity) return [];
+
+    // backtrack all paths whose total is within EPS of bestLen
+    var paths = [],
+        scope = this;
+    function backtrack(node, atomIdxs, bondIdxs, accLen) {
+        if (node === s) {
+            // confirm length
+            if (Math.abs(accLen - bestLen) <= EPS) {
+                var aIdx = atomIdxs.slice().reverse();
+                var bIdx = bondIdxs.slice().reverse();
+                var atomsPath = [],
+                    bondsPath = [];
+                for (var k = 0; k < aIdx.length; k++)
+                    atomsPath.push(scope.atoms[aIdx[k]]);
+                for (k = 0; k < bIdx.length; k++)
+                    bondsPath.push(scope.bonds[bIdx[k]]);
+
+                // ADD totalDistance: accLen here
+                paths.push({
+                    atoms: atomsPath,
+                    bonds: bondsPath,
+                    totalDistance: accLen, // <-- real numeric chemical distance
+                });
+            }
+            return;
+        }
+        var preds = parents[node];
+        for (var j = 0; j < preds.length; j++) {
+            var p = preds[j];
+            var blen = scope.chemicalBondLength(scope.bonds[p.bond]);
+            atomIdxs.push(p.u);
+            bondIdxs.push(p.bond);
+            backtrack(p.u, atomIdxs, bondIdxs, accLen + blen);
+            atomIdxs.pop();
+            bondIdxs.pop();
+        }
+    }
+    backtrack(t, [t], [], 0);
+    return paths;
+};
+
+// ----- Original code -----
 /**
  * Undo/redo
  */
