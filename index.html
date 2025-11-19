@@ -250,69 +250,74 @@ Query parameters:
 							$(window).width() < 390 && MolView.touch);
 				</script>
 				<div id="sketcher">
-					<div id="molpad" class="sketcher">
-						<div id="chem-tools" class="toolbar">
-							<div class="toolbar-inner">
-								<div id="action-mp-bond-single" class="tool-button primary-tool" title="Single bond"></div>
-								<div id="action-mp-bond-double" class="tool-button primary-tool" title="Double bond"></div>
-								<div id="action-mp-bond-triple" class="tool-button primary-tool" title="Triple bond"></div>
-								<div id="action-mp-bond-wedge" class="tool-button primary-tool" title="Wedge bond"></div>
-								<div id="action-mp-bond-hash" class="tool-button primary-tool" title="Hash bond"></div>
-								<div class="vertical-separator"></div>
-								<div id="action-mp-frag-benzene" class="tool-button primary-tool" title="Benzene"></div>
-								<div id="action-mp-frag-cyclopropane" class="tool-button primary-tool" title="Cyclopropane"></div>
-								<div id="action-mp-frag-cyclobutane" class="tool-button primary-tool" title="Cyclobutane"></div>
-								<div id="action-mp-frag-cyclopentane" class="tool-button primary-tool" title="Cyclopentane"></div>
-								<div id="action-mp-frag-cyclohexane" class="tool-button primary-tool" title="Cyclohexane"></div>
-								<div id="action-mp-frag-cycloheptane" class="tool-button primary-tool" title="Cycloheptane"></div>
-								<div class="vertical-separator"></div>
-								<div id="action-mp-chain" class="tool-button primary-tool" title="Carbon chain"></div>
-								<div id="action-mp-charge-add" class="tool-button primary-tool" title="Charge +">e<sup>+</sup></div>
-								<div id="action-mp-charge-sub" class="tool-button primary-tool" title="Charge -">e<sup>&minus;</sup></div>
-							</div>
-						</div>
-						<div id="edit-tools" class="toolbar">
-							<div class="toolbar-inner hstack">
-								<div id="action-mp-clear" class="tool-button tool-button-horizontal" title="Clear all"></div>
-								<div id="action-mp-eraser" class="tool-button tool-button-horizontal primary-tool" title="Erase"></div>
-								<div class="horizontal-separator"></div>
-								<div id="action-mp-undo" class="tool-button tool-button-horizontal tool-button-disabled" title="Undo"></div>
-								<div id="action-mp-redo" class="tool-button tool-button-horizontal tool-button-disabled" title="Redo"></div>
-								<div class="horizontal-separator"></div>
-								<div id="action-mp-drag" class="tool-button tool-button-horizontal primary-tool" title="Drag atoms and bonds"></div>
-								<div id="action-mp-rect" class="tool-button tool-button-horizontal primary-tool" title="Rectangle selection"></div>
-								<div id="action-mp-lasso" class="tool-button tool-button-horizontal primary-tool" title="Lasso selection"></div>
-								<div class="horizontal-separator"></div>
-								<div id="action-mp-color-mode" class="tool-button tool-button-horizontal enabled" title="Toggle color mode"></div>
-								<div id="action-mp-skeletal-formula" class="tool-button tool-button-horizontal enabled" title="Toggle skeletal formula"></div>
-								<div id="action-mp-center" class="tool-button tool-button-horizontal" title="Center structure"></div>
-								<div class="horizontal-separator"></div>
-								<div id="action-mp-clean" class="tool-button tool-button-horizontal" title="Clean structure"></div>
-								<div id="action-resolve" class="tool-button tool-button-horizontal" title="Update 3D view">2D to 3D</div>
-								<!-- Shortest Path tool -->
-								<a id="action-mp-shortest-path" class="tool-button primary-tool" title="Shortest path" onclick="Actions.mp_shortest_path()">SHP</a>
+    				<div id="molpad" class="sketcher">
+						<!-- Shortest-path info banner -->
+    					<span id="shortest-path-info" class="shortest-path-info"></span>
+        				<div id="chem-tools" class="toolbar">
+            				<div class="toolbar-inner">
+                				<div id="action-mp-bond-single" class="tool-button primary-tool" title="Single bond"></div>
+                				<div id="action-mp-bond-double" class="tool-button primary-tool" title="Double bond"></div>
+                				<div id="action-mp-bond-triple" class="tool-button primary-tool" title="Triple bond"></div>
+                				<div id="action-mp-bond-wedge" class="tool-button primary-tool" title="Wedge bond"></div>
+                				<div id="action-mp-bond-hash" class="tool-button primary-tool" title="Hash bond"></div>
+                				<div class="vertical-separator"></div>
+                				<div id="action-mp-frag-benzene" class="tool-button primary-tool" title="Benzene"></div>
+                				<div id="action-mp-frag-cyclopropane" class="tool-button primary-tool" title="Cyclopropane"></div>
+                				<div id="action-mp-frag-cyclobutane" class="tool-button primary-tool" title="Cyclobutane"></div>
+                				<div id="action-mp-frag-cyclopentane" class="tool-button primary-tool" title="Cyclopentane"></div>
+                				<div id="action-mp-frag-cyclohexane" class="tool-button primary-tool" title="Cyclohexane"></div>
+                				<div id="action-mp-frag-cycloheptane" class="tool-button primary-tool" title="Cycloheptane"></div>
+                				<div class="vertical-separator"></div>
+                				<div id="action-mp-chain" class="tool-button primary-tool" title="Carbon chain"></div>
+                				<div id="action-mp-charge-add" class="tool-button primary-tool" title="Charge +">e<sup>+</sup></div>
+                				<div id="action-mp-charge-sub" class="tool-button primary-tool" title="Charge -">e<sup>&minus;</sup></div>
+            				</div>
+        				</div>
 
+        				<div id="edit-tools" class="toolbar">
+            				<div class="toolbar-inner hstack">
+                				<div id="action-mp-clear" class="tool-button tool-button-horizontal" title="Clear all"></div>
+                				<div id="action-mp-eraser" class="tool-button tool-button-horizontal primary-tool" title="Erase"></div>
+                				<div class="horizontal-separator"></div>
+                				<div id="action-mp-undo" class="tool-button tool-button-horizontal tool-button-disabled" title="Undo"></div>
+                				<div id="action-mp-redo" class="tool-button tool-button-horizontal tool-button-disabled" title="Redo"></div>
+                				<div class="horizontal-separator"></div>
+                				<div id="action-mp-drag" class="tool-button tool-button-horizontal primary-tool" title="Drag atoms and bonds"></div>
+                				<div id="action-mp-rect" class="tool-button tool-button-horizontal primary-tool" title="Rectangle selection"></div>
+                				<div id="action-mp-lasso" class="tool-button tool-button-horizontal primary-tool" title="Lasso selection"></div>
+                				<div class="horizontal-separator"></div>
+                				<div id="action-mp-color-mode" class="tool-button tool-button-horizontal enabled" title="Toggle color mode"></div>
+                				<div id="action-mp-skeletal-formula" class="tool-button tool-button-horizontal enabled" title="Toggle skeletal formula"></div>
+                				<div id="action-mp-center" class="tool-button tool-button-horizontal" title="Center structure"></div>
+                				<div class="horizontal-separator"></div>
+                				<div id="action-mp-clean" class="tool-button tool-button-horizontal" title="Clean structure"></div>
+                				<div id="action-resolve" class="tool-button tool-button-horizontal" title="Update 3D view">2D to 3D</div>
+                				<!-- Shortest Path tools -->
+                				<div id="action-mp-shortest-path" class="tool-button tool-button-horizontal primary-tool" title="Shortest path"></div>
+                				<div id="action-mp-shortest-path-bond" class="tool-button tool-button-horizontal primary-tool" title="Shortest path by bond distances (SHPD)"></div>
+           					</div>
+        				</div>
 
-							</div>
-						</div>
-						<div id="elem-tools" class="toolbar">
-							<div class="toolbar-inner">
-								<div id="action-mp-atom-c" class="tool-button primary-tool tool-element element-colored" title="Carbon">C</div>
-								<div id="action-mp-atom-h" class="tool-button primary-tool tool-element element-colored" title="Hydrogen">H</div>
-								<div id="action-mp-atom-n" class="tool-button primary-tool tool-element element-colored" title="Nitrogen">N</div>
-								<div id="action-mp-atom-o" class="tool-button primary-tool tool-element element-colored" title="Oxygen">O</div>
-								<div id="action-mp-atom-p" class="tool-button primary-tool tool-element element-colored" title="Phosphorus">P</div>
-								<div id="action-mp-atom-s" class="tool-button primary-tool tool-element element-colored" title="Sulfur">S</div>
-								<div id="action-mp-atom-f" class="tool-button primary-tool tool-element element-colored" title="Fluorine">F</div>
-								<div id="action-mp-atom-cl" class="tool-button primary-tool tool-element element-colored" title="Chlorine">Cl</div>
-								<div id="action-mp-atom-br" class="tool-button primary-tool tool-element element-colored" title="Bromine">Br</div>
-								<div id="action-mp-atom-i" class="tool-button primary-tool tool-element element-colored" title="Iodine">I</div>
-								<div id="action-mp-periodictable" class="tool-button primary-tool" title="Periodic Table">...</div>
-							</div>
-						</div>
-						<div id="molpad-canvas-wrapper"></div>
-					</div>
+       	 				<div id="elem-tools" class="toolbar">
+            				<div class="toolbar-inner">
+                				<div id="action-mp-atom-c" class="tool-button primary-tool tool-element element-colored" title="Carbon">C</div>
+                				<div id="action-mp-atom-h" class="tool-button primary-tool tool-element element-colored" title="Hydrogen">H</div>
+                				<div id="action-mp-atom-n" class="tool-button primary-tool tool-element element-colored" title="Nitrogen">N</div>
+                				<div id="action-mp-atom-o" class="tool-button primary-tool tool-element element-colored" title="Oxygen">O</div>
+                				<div id="action-mp-atom-p" class="tool-button primary-tool tool-element element-colored" title="Phosphorus">P</div>
+                				<div id="action-mp-atom-s" class="tool-button primary-tool tool-element element-colored" title="Sulfur">S</div>
+                				<div id="action-mp-atom-f" class="tool-button primary-tool tool-element element-colored" title="Fluorine">F</div>
+                				<div id="action-mp-atom-cl" class="tool-button primary-tool tool-element element-colored" title="Chlorine">Cl</div>
+                				<div id="action-mp-atom-br" class="tool-button primary-tool tool-element element-colored" title="Bromine">Br</div>
+                				<div id="action-mp-atom-i" class="tool-button primary-tool tool-element element-colored" title="Iodine">I</div>
+                				<div id="action-mp-periodictable" class="tool-button primary-tool" title="Periodic Table">...</div>
+            				</div>
+        				</div>
+
+        				<div id="molpad-canvas-wrapper"></div>
+    				</div>
 				</div>
+
 				<div id="model">
 					<!-- Get preferred model background color from localStorage -->
 					<script type="text/javascript">
